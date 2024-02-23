@@ -1,5 +1,7 @@
 ﻿using api_demo.Data;
+using api_demo.DTOs;
 using api_demo.Models;
+using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -10,40 +12,43 @@ namespace api_demo.Controllers;
 public class ProductController : Controller
 {
     private readonly ApplicationDbContext _db;
-
-    public ProductController(ApplicationDbContext db)
+    private readonly IMapper _mapper;
+    public ProductController(ApplicationDbContext db, IMapper mapper)
     {
         _db = db;
+        _mapper = mapper;
     }
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Product>>> GetProducts()
+    public async Task<ActionResult<IEnumerable<ProductDto>>> GetProducts()
     {
-        return await _db.Products.ToListAsync();
+        var products = await _db.Products.ToListAsync();
+        return _mapper.Map<List<ProductDto>>(products);
     }
     [HttpGet("{id}")]
-    public async Task<ActionResult<Product>> GetProduct(int id)
+    public async Task<ActionResult<ProductDto>> GetProduct(int id)
     {
         var product = await _db.Products.FindAsync(id);
         if (product == null)
         {
             return NotFound();
         }
-        return product;
+        return _mapper.Map<ProductDto>(product);
     }
     [HttpPost]
-    public async Task<ActionResult<Product>> PostProduct(Product product)
+    public async Task<ActionResult<ProductDto>> PostProduct(Product product)
     {
         _db.Products.Add(product);
         await _db.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetProduct), new { id = product.Id }, product);
+        return CreatedAtAction(nameof(GetProduct), new { id = product.Id }, _mapper.Map<ProductDto>(product));
     }
     [HttpPut("{id}")]
-    public async Task<ActionResult> PutProduct(int id, Product product)
+    public async Task<ActionResult> PutProduct(int id, ProductDto productDto)
     {
-        if (id != product.Id)
+        if (id != productDto.Id)
         {
             return BadRequest();
         }
+        var product = _mapper.Map<Product>(productDto);
         _db.Entry(product).State = EntityState.Modified;
         try
         {

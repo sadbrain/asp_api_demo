@@ -1,8 +1,11 @@
 ﻿using api_demo.Data;
+using api_demo.DTOs;
 using api_demo.Models;
+using AutoMapper;
 using Azure;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -14,39 +17,45 @@ namespace api_demo.Controllers;
 public class CategoryController : Controller
 {
     private readonly ApplicationDbContext _db;
-    public CategoryController(ApplicationDbContext db) 
+    private readonly IMapper _mapper;
+    public CategoryController(ApplicationDbContext db, IMapper mapper) 
     {
         _db = db;
+        _mapper = mapper;
     }
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Category>>> GetCategories()
+    public async Task<ActionResult<IEnumerable<CategoryDto>>> GetCategories()
     {
         //trả về một task vụ bao bộc thằng như trên
-        //do đó kết quả trả về cần có await ở phía trước
-        return await _db.Categories.ToListAsync();
+        //do đó kết quả trả về cần có await ở phía trướcS
+        var categories = await _db.Categories.ToListAsync();
+        //lấy những thực thể category trong database thành một list CategoryDto
+        //The Map method performs the mapping based on the configuration provided by the mapper
+        //The result is a list of ProductDto, which is then returned as the response.
+        return _mapper.Map<List<CategoryDto>>(categories);
     }
     [HttpGet("{id}")]
-    public async Task<ActionResult<Category>> GetCategory(int id)
+    public async Task<ActionResult<CategoryDto>> GetCategory(int id)
     {
         var category = await _db.Categories.FindAsync(id);
         if(category == null)
         {
             return NotFound();
         }
-        return  category;
+        return _mapper.Map<CategoryDto>(category);
     }
     [HttpPost]
-    public async Task<ActionResult<Category>> PostCategory(Category category)
+    public async Task<ActionResult<CategoryDto>> PostCategory(Category category)
     {
         _db.Categories.Add(category);
         _db.SaveChangesAsync();
         //nó sẽ được tạo tại action có tên là GetCategory
-        return CreatedAtAction(nameof(GetCategory), new { id = category.Id }, category);
+        return CreatedAtAction(nameof(GetCategory), new { id = category.Id }, _mapper.Map<CategoryDto>(category));
     }
     [HttpPut("{id}")]
-    public async Task<IActionResult> PutCategory(int id, Category category)
+    public async Task<IActionResult> PutCategory(int id, CategoryDto categoryDto)
     {
-        if(id != category.Id)
+        if(id != categoryDto.Id)
         {
             return BadRequest();
         }
@@ -54,6 +63,7 @@ public class CategoryController : Controller
         //An EntityEntry represents the metadata and operations for a given entity being tracked by the DbContext.
         //trạng thái của một entity in the context
         //such as: "added", "unchanged', 'modified", "Deleted", "Detached"
+        var category = _mapper.Map<Category>(categoryDto);
         _db.Entry(category).State = EntityState.Modified;
         try
         {
